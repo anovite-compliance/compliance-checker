@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colostrum6 Compliance Checker</title>
+<style>
+  :root{
+    --paper: #EDF1EF;
+    --paper-card: #FFFFFF;
+    --ink: #1C2B2B;
+    --ink-soft: #4B5A5A;
+    --rule-line: #D3DAD7;
+    --red: #B23A2E;
+    --red-soft: #F4E3E0;
+    --green: #3B6E52;
+    --green-soft: #E1EBE4;
+    --amber: #B8842A;
+    --amber-soft: #F5EAD8;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --serif: Georgia, 'Iowan Old Style', 'Source Serif 4', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .app{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:10px;flex-wrap:wrap;gap:10px;}
+  header.top .brand-mark{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:6px;}
+  header.top h1{font-family:var(--serif);font-size:30px;margin:0;font-weight:700;letter-spacing:-0.01em;}
+  header.top .sub{font-family:var(--sans);font-size:13px;color:var(--ink-soft);max-width:420px;text-align:right;line-height:1.5;}
+
+  .offline-badge{
+    font-family:var(--mono);font-size:11px;color:var(--green);background:var(--green-soft);
+    display:inline-block;padding:5px 10px;border-radius:2px;margin-bottom:22px;letter-spacing:0.03em;
+  }
+
+  nav.tabs{display:flex;gap:2px;margin-bottom:22px;border-bottom:1px solid var(--rule-line);}
+  nav.tabs button{font-family:var(--mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;background:none;border:none;padding:10px 16px;cursor:pointer;color:var(--ink-soft);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--red);font-weight:700;}
+  nav.tabs button:hover{color:var(--ink);}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  @media (max-width:860px){.grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--paper-card);border:1px solid var(--rule-line);border-radius:3px;padding:20px;}
+  .card h2{font-family:var(--serif);font-size:16px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--rule-line);}
+  label.field-label{display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);margin-bottom:6px;}
+  textarea{width:100%;min-height:220px;font-family:var(--sans);font-size:14.5px;line-height:1.55;padding:12px;border:1px solid var(--rule-line);border-radius:2px;resize:vertical;background:#FCFCFB;color:var(--ink);}
+  textarea:focus{outline:2px solid var(--ink);outline-offset:-1px;}
+
+  .row{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  button.primary{font-family:var(--mono);font-size:12.5px;letter-spacing:0.05em;text-transform:uppercase;background:var(--ink);color:var(--paper);border:none;padding:11px 20px;border-radius:2px;cursor:pointer;}
+  button.primary:hover{background:#0e1919;}
+  button.ghost{font-family:var(--mono);font-size:12px;background:none;border:1px solid var(--rule-line);color:var(--ink-soft);padding:9px 14px;border-radius:2px;cursor:pointer;}
+  button.ghost:hover{border-color:var(--ink);color:var(--ink);}
+
+  .checklist{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .checklist .item{display:flex;align-items:center;gap:8px;font-size:13px;font-family:var(--mono);}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--rule-line);}
+  .dot.yes{background:var(--green);}
+  .dot.no{background:var(--red);}
+
+  .results-empty{color:var(--ink-soft);font-size:13.5px;font-family:var(--sans);padding:30px 6px;text-align:center;border:1px dashed var(--rule-line);border-radius:3px;}
+  .stamp-wrap{display:flex;justify-content:center;margin:6px 0 18px;}
+  .stamp{font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:0.12em;text-transform:uppercase;padding:10px 22px;border:3px double currentColor;border-radius:4px;transform:rotate(-2.5deg);display:inline-block;}
+  .stamp.approved{color:var(--green);}
+  .stamp.revise{color:var(--red);}
+  .stamp.caution{color:var(--amber);}
+
+  .summary-line{font-size:13.5px;color:var(--ink-soft);text-align:center;margin-bottom:16px;line-height:1.5;}
+
+  .issue{border-left:3px solid var(--red);background:var(--red-soft);border-radius:0 3px 3px 0;padding:12px 14px;margin-bottom:12px;}
+  .issue.caution{border-left-color:var(--amber);background:var(--amber-soft);}
+  .issue .quote{font-family:var(--serif);font-style:italic;font-size:14.5px;margin-bottom:6px;color:var(--ink);}
+  .issue .rule{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--red);margin-bottom:6px;}
+  .issue.caution .rule{color:var(--amber);}
+  .issue .explain{font-size:13px;line-height:1.5;margin-bottom:8px;color:var(--ink);}
+  .issue .fix{font-size:13px;background:var(--green-soft);border-left:2px solid var(--green);padding:8px 10px;border-radius:0 2px 2px 0;color:#20402e;}
+  .issue .fix b{color:var(--green);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:3px;}
+
+  .facts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:860px){.facts-grid{grid-template-columns:1fr;}}
+  .fact-card h3{font-family:var(--serif);font-size:14.5px;margin:0 0 8px;}
+  .fact-card ul{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--ink-soft);}
+  .fact-card table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .fact-card td{padding:5px 4px;border-bottom:1px solid var(--rule-line);vertical-align:top;}
+  .fact-card td.k{font-weight:700;width:38%;color:var(--ink);}
+  .notice{font-family:var(--mono);font-size:11.5px;color:var(--red);background:var(--red-soft);border:1px solid var(--red);padding:10px 12px;border-radius:3px;margin-bottom:18px;line-height:1.5;}
+
+  .hist-item{border:1px solid var(--rule-line);border-radius:3px;padding:12px 14px;margin-bottom:10px;background:var(--paper-card);}
+  .hist-item .meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-bottom:6px;}
+  .hist-item .snippet{font-size:13px;color:var(--ink);}
+  .badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:2px 7px;border-radius:2px;letter-spacing:0.04em;}
+  .badge.approved{background:var(--green-soft);color:var(--green);}
+  .badge.revise{background:var(--red-soft);color:var(--red);}
+  .badge.caution{background:var(--amber-soft);color:var(--amber);}
+
+  footer.note{margin-top:28px;font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);border-top:1px solid var(--rule-line);padding-top:14px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div>
+      <div class="brand-mark">Self-check tool &middot; not a substitute for written approval</div>
+      <h1>Colostrum6 Compliance Checker</h1>
+    </div>
+    <div class="sub">Checks draft content against the Anovite Compliance Quick-Reference Guide before it goes to <b>anovitecompliance@gmail.com</b>.</div>
+  </header>
+  <div class="offline-badge">&#9679; Fully offline — runs entirely in your browser, no AI, no account, no data sent anywhere</div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="check">Check Content</button>
+    <button class="tab-btn" data-tab="facts">Product Facts Reference</button>
+    <button class="tab-btn" data-tab="history">My History</button>
+  </nav>
+
+  <div class="panel active" id="panel-check">
+    <div class="grid">
+      <div class="card">
+        <h2>Draft Content</h2>
+        <label class="field-label">Paste your post, caption, or message</label>
+        <textarea id="draftInput" placeholder="Paste the social media post, caption, or message you're about to publish..."></textarea>
+        <div class="row">
+          <button class="primary" onclick="runCheck()">Run Compliance Check</button>
+          <button class="ghost" onclick="clearDraft()">Clear</button>
+        </div>
+        <div class="checklist">
+          <div class="item"><span class="dot" id="dot-disclaimer"></span> FDA disclaimer present</div>
+          <div class="item"><span class="dot" id="dot-associate"></span> "[Name], Anovite Independent Associate" identification present</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Review</h2>
+        <div id="resultsWrap">
+          <div class="results-empty">Paste content on the left and run a check to see the review here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-facts">
+    <div class="notice">These are neutral product facts only — sourcing, ingredients, dosage mechanics. They are NOT pre-approved marketing language. Any statement about what an ingredient "does" for the body still needs approved structure-function phrasing and compliance sign-off.</div>
+    <div class="facts-grid" id="factsGrid"></div>
+  </div>
+
+  <div class="panel" id="panel-history">
+    <div class="card">
+      <h2>Past Checks (saved only in this browser)</h2>
+      <div id="historyList"><div class="results-empty">No checks yet.</div></div>
+    </div>
+  </div>
+
+  <footer class="note">
+    Self-check only, powered by a fixed rule set — not an AI model, no network calls, nothing leaves your browser. Per §9 of the Quick-Reference Guide: do not publish, post, print, or distribute until written approval is received from Anovite Compliance.
+  </footer>
+</div>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='history') renderHistory();
+  });
+});
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function escapeRegex(s){
+  return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+/* ---------------- RULE DATA (from Anovite Compliance Quick-Reference Guide) ---------------- */
+
+const NEVER_MENTION = ["diabetes","heart attack","arthritis","obesity","insomnia","psoriasis","eczema","cancer",
+  "fibromyalgia","chronic fatigue syndrome","crohn's disease","crohns disease","depression","gingivitis",
+  "alzheimer's","alzheimers","dementia","osteoporosis","asthma","aids","arrhythmia","bronchospasm"];
+
+const HARD_BANNED_VERBS = ["cure","cures","curing","diagnose","diagnoses","diagnosing","mitigate","mitigates",
+  "mitigating","heals","healing","restores","restoring"];
+
+const CONTEXT_VERBS = ["treat","treats","treating","prevent","prevents","preventing","controls","controlling",
+  "lowers","lowering"];
+
+const VERB_REPLACEMENTS = {
+  cure:"supports", cures:"supports", curing:"supporting",
+  diagnose:"(remove entirely — structure-function claims cannot reference diagnosis)",
+  diagnoses:"(remove entirely — structure-function claims cannot reference diagnosis)",
+  diagnosing:"(remove entirely — structure-function claims cannot reference diagnosis)",
+  mitigate:"supports", mitigates:"supports", mitigating:"supporting",
+  heals:"supports", healing:"supporting", restores:"supports", restoring:"supporting",
+  treat:"support", treats:"supports", treating:"supporting",
+  prevent:"help maintain", prevents:"helps maintain", preventing:"helping maintain",
+  controls:"helps maintain", controlling:"helping maintain",
+  lowers:"helps maintain levels already within the normal range",
+  lowering:"helping maintain levels already within the normal range"
+};
+
+const SUBSTITUTE_DRUG_PATTERNS = [
+  /\bherbal\s+(prozac|viagra|xanax|adderall)\b/i,
+  /\b(natural|herbal)\s+(alternative|substitute)\s+(to|for)\b/i,
+  /\b(instead of|in place of|replace|replacing|get off|getting off|reduce your|cut back on|wean off)\s+(your\s+)?(medication|meds|insulin|prescription|drugs?|chemo|chemotherapy)\b/i,
+  /\balternative to (hgh|insulin|antidepressants?|chemo|chemotherapy|prescription)\b/i
+];
+
+const AUGMENT_DRUG_PATTERNS = [
+  /\b(counteracts?|counteracting|boosts?|enhances?|augments?)\s+(the\s+)?(effects?|side effects?|action)\s+of\s+(your\s+)?(medication|chemo|chemotherapy|drug|prescription)\b/i,
+  /\bside effects? of (chemo|chemotherapy|medication)\b/i
+];
+
+const ANTIMICROBIAL_PATTERNS = [
+  /\b(kills?|fighting|fights|destroys?|eliminates?)\s+(bacteria|viruses|germs|pathogens|infections?)\b/i,
+  /\bantiviral\b/i, /\bantibacterial\b/i, /\banti-?microbial\b/i
+];
+
+const TESTIMONIAL_HEALTH_PATTERNS = [
+  /\b(cured|healed|prevented)\s+my\b/i
+];
+
+const INCOME_CLAIM_PATTERNS = [
+  /\$\s?\d{2,}[,.]?\d*\s*(per|\/)\s*(month|week|day|year)\b/i,
+  /\bi\s+(made|earned|make|earn)\s+\$?\d/i
+];
+
+const DISCLAIMER_RE = /(not been evaluated by the food and drug administration|not intended to diagnose,\s*treat,\s*cure)/i;
+const DISCLAIMER_BLOCK_RE = /these statements have not been evaluated by the food and drug administration\.?\s*this product is not intended to diagnose,?\s*treat,?\s*cure,?\s*or prevent any disease\.?/gi;
+const ASSOCIATE_ID_RE = /anovite independent associate/i;
+const FDA_DISCLAIMER_TEXT = "These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.";
+
+/* ---------------- RULE ENGINE ---------------- */
+
+function findMatches(text, patterns){
+  const out = [];
+  patterns.forEach(re=>{
+    const globalRe = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags+'g');
+    let m;
+    while((m = globalRe.exec(text)) !== null){
+      out.push({index:m.index, text:m[0]});
+      if(m.index === globalRe.lastIndex) globalRe.lastIndex++;
+    }
+  });
+  return out;
+}
+
+function contextSnippet(text, index, len){
+  const start = Math.max(0, index - 20);
+  const end = Math.min(text.length, index + len + 20);
+  let snippet = text.slice(start, end).trim();
+  if(start > 0) snippet = '...' + snippet;
+  if(end < text.length) snippet = snippet + '...';
+  return snippet;
+}
+
+function runComplianceCheck(text){
+  const issues = [];
+  // Strip the mandated FDA disclaimer boilerplate before scanning for claim violations,
+  // so the required disclaimer text itself is never flagged as a drug claim.
+  const scanText = text.replace(DISCLAIMER_BLOCK_RE, ' ');
+
+  // 1. Never-mention disease/condition names
+  NEVER_MENTION.forEach(term=>{
+    const re = new RegExp('\\b' + escapeRegex(term) + '\\b', 'gi');
+    let m;
+    while((m = re.exec(scanText)) !== null){
+      issues.push({
+        severity:'violation',
+        rule:'Never Mention list — named disease/condition (§2.3)',
+        quote: contextSnippet(scanText, m.index, m[0].length),
+        explanation: "Named conditions can never be mentioned, even to say the product doesn't treat them — naming it still creates the association.",
+        suggestion: 'Remove "' + m[0] + '" entirely. Reframe around occasional, non-chronic wellness (e.g. "helps support already-healthy levels") without naming any diagnosis.'
+      });
+      if(m.index === re.lastIndex) re.lastIndex++;
+    }
+  });
+
+  // 2. Hard-banned verbs
+  HARD_BANNED_VERBS.forEach(term=>{
+    const re = new RegExp('\\b' + escapeRegex(term) + '\\b', 'gi');
+    let m;
+    while((m = re.exec(scanText)) !== null){
+      const lowerWord = m[0].toLowerCase();
+      issues.push({
+        severity:'violation',
+        rule:'Prohibited verb (§2.1)',
+        quote: contextSnippet(scanText, m.index, m[0].length),
+        explanation: '"' + m[0] + '" is a drug-claim verb — it implies treating or fixing a disease state, which structure-function claims can never do.',
+        suggestion: 'Replace with an approved verb: "' + (VERB_REPLACEMENTS[lowerWord] || 'supports/promotes/helps maintain') + '".'
+      });
+      if(m.index === re.lastIndex) re.lastIndex++;
+    }
+  });
+
+  // 3. Context-dependent verbs (caution)
+  CONTEXT_VERBS.forEach(term=>{
+    const re = new RegExp('\\b' + escapeRegex(term) + '\\b', 'gi');
+    let m;
+    while((m = re.exec(scanText)) !== null){
+      const lowerWord = m[0].toLowerCase();
+      issues.push({
+        severity:'caution',
+        rule:'Context-dependent verb — review needed (§2.1)',
+        quote: contextSnippet(scanText, m.index, m[0].length),
+        explanation: '"' + m[0] + '" is only safe when it clearly does NOT imply an effect on disease (e.g. "helps prevent occasional muscle soreness from overuse" is fine; "prevents arthritis" is not). Double-check the surrounding context.',
+        suggestion: "If there's any disease implication, replace with: \"" + (VERB_REPLACEMENTS[lowerWord] || 'helps maintain') + "\"."
+      });
+      if(m.index === re.lastIndex) re.lastIndex++;
+    }
+  });
+
+  // 4. Substitute-for-drug language
+  findMatches(scanText, SUBSTITUTE_DRUG_PATTERNS).forEach(hit=>{
+    issues.push({
+      severity:'violation',
+      rule:'Substitute-for-therapy claim (§1.3)',
+      quote: contextSnippet(scanText, hit.index, hit.text.length),
+      explanation: 'Positioning the product as a substitute or alternative for a drug or medical therapy is always a drug claim, with no exceptions.',
+      suggestion: 'Remove any comparison to medications, injections, or medical therapies. Describe only what the product does for normal body function, on its own.'
+    });
+  });
+
+  // 5. Augment/counteract drug therapy language
+  findMatches(scanText, AUGMENT_DRUG_PATTERNS).forEach(hit=>{
+    issues.push({
+      severity:'violation',
+      rule:'Augments/counteracts a therapy (§1.2, criterion 7)',
+      quote: contextSnippet(scanText, hit.index, hit.text.length),
+      explanation: "Claiming the product counteracts or augments a drug or medical therapy's effects is a prohibited drug claim.",
+      suggestion: 'Remove any reference to medications, chemotherapy, or other medical therapies from this content.'
+    });
+  });
+
+  // 6. Antimicrobial / pathogen-fighting language
+  findMatches(scanText, ANTIMICROBIAL_PATTERNS).forEach(hit=>{
+    issues.push({
+      severity:'violation',
+      rule:'Antimicrobial/pathogen language (§1.3)',
+      quote: contextSnippet(scanText, hit.index, hit.text.length),
+      explanation: 'Antimicrobial, pathogen-fighting, or "clearing germs" language implies treatment of infection or disease.',
+      suggestion: 'Replace with general immune-support language, e.g. "supports a healthy immune system."'
+    });
+  });
+
+  // 7. Testimonial health claims
+  findMatches(scanText, TESTIMONIAL_HEALTH_PATTERNS).forEach(hit=>{
+    issues.push({
+      severity:'violation',
+      rule:'Testimonial health claim (§3)',
+      quote: contextSnippet(scanText, hit.index, hit.text.length),
+      explanation: 'Testimonials may never include "healed," "cured," or "prevented" language — an individual\'s anecdote is never scientific substantiation.',
+      suggestion: 'Describe the personal experience without a health-outcome claim, e.g. "I feel like part of my daily routine" rather than a cure/heal claim.'
+    });
+  });
+
+  // 8. Income claims
+  findMatches(scanText, INCOME_CLAIM_PATTERNS).forEach(hit=>{
+    issues.push({
+      severity:'violation',
+      rule:'Personal income claim (§4)',
+      quote: contextSnippet(scanText, hit.index, hit.text.length),
+      explanation: "Personal income can never be used to suggest what others can expect to earn, and testimonials can't include income claims at all.",
+      suggestion: 'Remove the specific dollar figure. If discussing the opportunity, point people to Anovite-approved compensation plan materials instead.'
+    });
+  });
+
+  // 9. "Improves" caution
+  {
+    const re = /\bimproves?\b/gi;
+    let m;
+    while((m = re.exec(scanText)) !== null){
+      issues.push({
+        severity:'caution',
+        rule:'"Improves" used cautiously (§1.3)',
+        quote: contextSnippet(scanText, m.index, m[0].length),
+        explanation: '"Improves" is fine for things like memory or strength, but risky when it implies correcting an existing abnormality or deficiency (e.g. "improves liver function" vs. "improves memory").',
+        suggestion: 'Confirm this isn\'t implying correction of a diseased or deficient state. If in doubt, use "supports" or "promotes" instead.'
+      });
+      if(m.index === re.lastIndex) re.lastIndex++;
+    }
+  }
+
+  // 10. Disclaimer / Associate ID
+  const hasDisclaimer = DISCLAIMER_RE.test(text);
+  const hasAssociateId = ASSOCIATE_ID_RE.test(text);
+  if(!hasDisclaimer){
+    issues.push({
+      severity:'caution',
+      rule:'FDA Disclaimer Requirement (§7)',
+      quote:'',
+      explanation: "All public-facing content must carry the standard FDA disclaimer, held on-screen long enough to read if it's video.",
+      suggestion: 'Add: "' + FDA_DISCLAIMER_TEXT + '"'
+    });
+  }
+  if(!hasAssociateId){
+    issues.push({
+      severity:'caution',
+      rule:'Blind Ad Rule — Associate Identification (§5.1)',
+      quote:'',
+      explanation: 'Public content must conspicuously disclose your connection to Anovite — anonymous or unidentified posting is prohibited.',
+      suggestion: 'Add "[Your First Name], Anovite Independent Associate" clearly in the post or bio.'
+    });
+  }
+
+  // Dedupe near-identical issues (same rule + same quote)
+  const seen = new Set();
+  const deduped = issues.filter(i=>{
+    const key = i.rule + '|' + i.quote;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const ADMIN_RULES = ['FDA Disclaimer Requirement (§7)', 'Blind Ad Rule — Associate Identification (§5.1)'];
+  const substantiveIssues = deduped.filter(i => !ADMIN_RULES.includes(i.rule));
+  const adminOnlyIssues = deduped.filter(i => ADMIN_RULES.includes(i.rule));
+
+  const hasViolation = substantiveIssues.some(i=>i.severity==='violation');
+  const hasSubstantiveCaution = substantiveIssues.some(i=>i.severity==='caution');
+  let status = 'approved';
+  if(hasViolation) status = 'needs_revision';
+  else if(hasSubstantiveCaution) status = 'caution';
+  else if(adminOnlyIssues.length > 0) status = 'admin_only';
+
+  let summary;
+  if(status === 'approved') summary = 'This looks compliant based on the rules checked here. Always send it to anovitecompliance@gmail.com for written approval before you post — this tool does not replace that step.';
+  else if(status === 'needs_revision') summary = substantiveIssues.filter(i=>i.severity==='violation').length + ' likely violation(s) found — revise before submitting.';
+  else if(status === 'caution') summary = deduped.length + ' item(s) need a second look before this is ready to submit.';
+  else summary = 'Your claim language looks compliant — you\'re just missing required boilerplate. Add the item(s) below, then this is ready to submit to anovitecompliance@gmail.com.';
+
+  return {
+    status, disclaimer_present: hasDisclaimer, associate_id_present: hasAssociateId,
+    summary, issues: deduped.slice(0, 10)
+  };
+}
+
+/* ---------------- UI ---------------- */
+
+function clearDraft(){
+  document.getElementById('draftInput').value='';
+  document.getElementById('resultsWrap').innerHTML = '<div class="results-empty">Paste content on the left and run a check to see the review here.</div>';
+  setDot('dot-disclaimer', null);
+  setDot('dot-associate', null);
+}
+
+function setDot(id, state){
+  const el = document.getElementById(id);
+  el.classList.remove('yes','no');
+  if(state===true) el.classList.add('yes');
+  if(state===false) el.classList.add('no');
+}
+
+function runCheck(){
+  const text = document.getElementById('draftInput').value.trim();
+  const resultsWrap = document.getElementById('resultsWrap');
+  if(!text){
+    resultsWrap.innerHTML = '<div class="results-empty">Paste some content first.</div>';
+    return;
+  }
+  const result = runComplianceCheck(text);
+  setDot('dot-disclaimer', result.disclaimer_present);
+  setDot('dot-associate', result.associate_id_present);
+  renderResults(result);
+  saveHistory(text, result);
+}
+
+function renderResults(result){
+  const wrap = document.getElementById('resultsWrap');
+  const statusClass = result.status === 'approved' ? 'approved' : (result.status === 'admin_only' ? 'approved' : (result.status === 'caution' ? 'caution' : 'revise'));
+  const stampLabel = result.status === 'approved' ? 'Looks Compliant' : (result.status === 'admin_only' ? 'Add Disclaimer & ID' : (result.status === 'caution' ? 'Needs A Look' : 'Revise Before Sending'));
+
+  let html = '';
+  html += '<div class="stamp-wrap"><span class="stamp ' + statusClass + '">' + stampLabel + '</span></div>';
+  html += '<div class="summary-line">' + escapeHtml(result.summary || '') + '</div>';
+
+  const issues = result.issues || [];
+  if(issues.length === 0){
+    html += '<div class="results-empty">No specific issues flagged by the rule set.</div>';
+  } else {
+    issues.forEach(issue=>{
+      const cautionClass = issue.severity === 'caution' ? ' caution' : '';
+      html += '<div class="issue' + cautionClass + '">';
+      html += '<div class="rule">' + escapeHtml(issue.rule || '') + '</div>';
+      if(issue.quote){
+        html += '<div class="quote">&ldquo;' + escapeHtml(issue.quote) + '&rdquo;</div>';
+      }
+      html += '<div class="explain">' + escapeHtml(issue.explanation || '') + '</div>';
+      if(issue.suggestion){
+        html += '<div class="fix"><b>Try instead</b>' + escapeHtml(issue.suggestion) + '</div>';
+      }
+      html += '</div>';
+    });
+  }
+  wrap.innerHTML = html;
+}
+
+/* ---------------- HISTORY (real browser localStorage — this file runs standalone, no Claude.ai runtime) ---------------- */
+
+const HISTORY_KEY = 'anovite_compliance_history';
+
+function saveHistory(text, result){
+  try{
+    const raw = localStorage.getItem(HISTORY_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    list.unshift({
+      timestamp: new Date().toISOString(),
+      status: result.status,
+      summary: result.summary,
+      snippet: text.slice(0,140)
+    });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0,100)));
+  }catch(e){
+    console.error('Could not save history (localStorage unavailable):', e);
+  }
+}
+
+function renderHistory(){
+  const listEl = document.getElementById('historyList');
+  let entries = [];
+  try{
+    const raw = localStorage.getItem(HISTORY_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    listEl.innerHTML = '<div class="results-empty">History isn\'t available in this browser context.</div>';
+    return;
+  }
+  if(entries.length === 0){
+    listEl.innerHTML = '<div class="results-empty">No checks yet.</div>';
+    return;
+  }
+  let html = '';
+  entries.forEach(e=>{
+    const badgeClass = e.status === 'approved' ? 'approved' : (e.status === 'admin_only' ? 'approved' : (e.status === 'caution' ? 'caution' : 'revise'));
+    const badgeLabel = e.status === 'approved' ? 'Compliant' : (e.status === 'admin_only' ? 'Add Disclaimer/ID' : (e.status === 'caution' ? 'Caution' : 'Revise'));
+    html += '<div class="hist-item">';
+    html += '<div class="meta"><span>' + new Date(e.timestamp).toLocaleString() + '</span><span class="badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
+    html += '<div class="snippet">' + escapeHtml(e.snippet) + (e.snippet.length>=140?'...':'') + '</div>';
+    html += '</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+/* ---------------- PRODUCT FACTS (neutral facts only) ---------------- */
+const FACTS = [
+  { title:"What It Is", type:"list", items:[
+    "Colostrum6 is a bovine (cow) colostrum supplement, collected within the first 0–6 hours after birth.",
+    "Sourced from USDA Grade A, grass-fed cows.",
+    "Available as capsules, powder, and chewable tablets.",
+    "Batches are tested with an Animal Health Certificate from the USDA."
+  ]},
+  { title:"Certifications / Sourcing (as stated by manufacturer)", type:"list", items:[
+    "Marketed as antibiotic-free, hormone-free, gluten-free, pesticide-free, non-GMO.",
+    "Marketed as third-party tested and certified 6-hour collection.",
+    "90-day money-back guarantee (per manufacturer)."
+  ]},
+  { title:"Serving / Dosage Info (as stated by manufacturer)", type:"table", rows:[
+    ["Capsule form","Typically 2–3 capsules (1,000–1,500 mg), taken on an empty stomach with water"],
+    ["Frequency","Manufacturer info describes 2–3x daily for maximal benefit"],
+    ["Powder form","Can be mixed into food/drink; manufacturer notes it can also be taken sublingually"],
+    ["Timing","Best taken 30 min before or 45 min after eating, per manufacturer"]
+  ]},
+  { title:"Product Sizes (retail pricing as listed)", type:"table", rows:[
+    ["180 capsules (1 mo. supply)","$50.00 (retail $62.50)"],
+    ["6.5 oz powder (1 mo. supply)","$65.00 (retail $81.25)"],
+    ["Pineapple chews","$45.00 (retail $56.25)"],
+    ["1 lb powder (2+ mo. supply)","$136.00 (retail $170.00)"],
+    ["2 lb powder (4+ mo. supply)","$209.00 (retail $261.25)"]
+  ]},
+  { title:"Composition Facts (as stated by manufacturer)", type:"list", items:[
+    "Contains immunoglobulins, lactoferrin, growth factors, and other bioactive proteins naturally found in colostrum.",
+    "Manufacturer states it contains minimal lactose.",
+    "Manufacturer states no known drug interactions, though other supplements/medications may need re-evaluation by a healthcare provider."
+  ]},
+  { title:"Reminder for Associates", type:"list", items:[
+    "These are neutral facts pulled from manufacturer materials — not pre-cleared marketing copy.",
+    "Any statement about what the product 'does' for the body still needs approved structure-function language and compliance review.",
+    "Manufacturer claims about specific mechanisms (e.g., comparisons to HGH therapy, named disease benefits) are NOT safe to repeat — run them through the Compliance Checker tab."
+  ]}
+];
+
+function renderFacts(){
+  const grid = document.getElementById('factsGrid');
+  let html = '';
+  FACTS.forEach(f=>{
+    html += '<div class="card fact-card"><h3>' + escapeHtml(f.title) + '</h3>';
+    if(f.type === 'list'){
+      html += '<ul>';
+      f.items.forEach(i=> html += '<li>' + escapeHtml(i) + '</li>');
+      html += '</ul>';
+    } else if(f.type === 'table'){
+      html += '<table>';
+      f.rows.forEach(r=> html += '<tr><td class="k">' + escapeHtml(r[0]) + '</td><td>' + escapeHtml(r[1]) + '</td></tr>');
+      html += '</table>';
+    }
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+}
+renderFacts();
+</script>
+</body>
+</html>
